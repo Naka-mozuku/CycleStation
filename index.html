@@ -84,14 +84,22 @@
 			}
 		    
 		    for (stn of stn_list) {
-		    	let markericon = "fa-bicycle";
+		    	let markericon = "";
+		    	if (color_type == "num_dock"){
+		    		markericon = "fa-check";
+		    	} else {
+		    		markericon = "fa-bicycle";
+		    	}
 		    	let markercolor = "blue";
 		    	
 		    	if (stn.is_charging_station) {
 		    		markericon = "fa-bolt";
 		    	}
 		    	if (color_type == "num_bike") {
-		    		if (stn.num_bikes_available == 0) {
+		    		if (!stn.is_renting && !stn.is_returning && !(stn.num_bikes_available == 0 && stn.num_docks_available == 0)) {
+		    			markercolor = "black";
+		    			markericon = "fa-ban";
+		    		} else if (stn.num_bikes_available == 0) {
 		    			markercolor = "black";
 		    		} else if (stn.num_bikes_available < 3) {
 		    			markercolor = "red";
@@ -99,7 +107,10 @@
 		    			markercolor = "orange";
 		    		}
 		    	} else if (color_type == "num_dock") {
-		    		if (stn.num_docks_available == 0) {
+		    		if (!stn.is_renting && !stn.is_returning && !(stn.num_bikes_available == 0 && stn.num_docks_available == 0)) {
+		    			markercolor = "black";
+		    			markericon = "fa-ban";
+		    		} else if (stn.num_docks_available == 0) {
 		    			markercolor = "black";
 		    		} else if (stn.num_docks_available < 3) {
 		    			markercolor = "red";
