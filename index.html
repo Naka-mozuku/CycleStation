@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Map Click Example</title>
+	<!-- Leafletを読み込む -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/leaflet.extra-markers.min.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- plugin -->
+    <link rel="stylesheet" href="css/leaflet.awesome-markers.css">
+    <script src="js/leaflet.awesome-markers.js"></script>
+    <script src="js/leaflet.extra-markers.min.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css" integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp" crossorigin="anonymous">
+<!-- plugin -->
+    <script>
+        function initMap() {
+            
+            let data_promise = apiread();
+			data_promise.then(
+				function onFulfilled(value){
+					station_data = value;
+					console.log(station_data);
+				},
+			)
+            
+            let map = L.map('map').setView([35.7135, 139.7923], 16); // 表示時の中心部分
+            let marker;
+            let station_data = {};
+            let near_stn = {};
+
+			// クレジット表記
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+						
+			// クリック時の動作
+            map.on('click', function(e) {
+                let loc = e.latlng;
+                
+                // 近隣ステーション検索
+                near_stn = station_data.filter(function(item) {
+                	let range_element = document.getElementById('range')
+                	return distance(loc.lat, loc.lng, item.lat, item.lon) < range_element.value / 1000
+                })
+                
+                // マーカーがあれば消去
+                map.eachLayer((layer) => {
+					if (layer._icon != undefined) {
+						map.removeLayer(layer);
+					}
+				})
+			    
+			    set_marker(near_stn, map);
+			    
+            });
+        }
+        
+        const R = Math.PI / 180;
+
+		function distance(lat1, lng1, lat2, lng2) {
+			lat1 *= R;
+			lng1 *= R;
+			lat2 *= R;
+			lng2 *= R;
+			return 6371 * Math.acos(Math.cos(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1) + Math.sin(lat1) * Math.sin(lat2));
+		}
+        
+        function set_marker(stn_list, map) {
+		    let element =  document.getElementsByName("color_type");
+		    let color_type;
+			for (let i = 0; i < element.length; i++){
+			    if (element.item(i).checked){
+			        color_type = element.item(i).value;
+			    }
+			}
+		    
+		    for (stn of stn_list) {
+		    	let markericon = "fa-bicycle";
+		    	let markercolor = "blue";
+		    	
+		    	if (stn.is_charging_station) {
+		    		markericon = "fa-bolt";
+		    	}
+		    	if (color_type == "num_bike") {
+		    		if (stn.num_bikes_available == 0) {
+		    			markercolor = "black";
+		    		} else if (stn.num_bikes_available < 3) {
+		    			markercolor = "red";
+		    		} else if (stn.num_bikes_available < 5) {
+		    			markercolor = "orange";
+		    		}
+		    	} else if (color_type == "num_dock") {
+		    		if (stn.num_docks_available == 0) {
+		    			markercolor = "black";
+		    		} else if (stn.num_docks_available < 3) {
+		    			markercolor = "red";
+		    		} else if (stn.num_docks_available < 5) {
+		    			markercolor = "orange";
+		    		}
+		    	}
+		    	
+		    	options = {
+				    prefix: "fa"
+				    ,icon: markericon
+				    ,shape: "circle"
+				    ,markerColor: markercolor
+				};
+		    	let popup = "<b>" + stn.name + "</b>" +
+		    				"<br>容量：" + stn.vehicle_capacity +
+		    				"<br>利用可能：" + stn.num_bikes_available +
+		    				"<br>返却可能：" + stn.num_docks_available;
+		    	let marker = L.marker([stn.lat, stn.lon], {icon: L.ExtraMarkers.icon(options)}).addTo(map);
+		    	marker.bindPopup(popup);
+		    }
+        }
+        
+        async function apiread() {
+        	const response1 = await fetch("https://api-public.odpt.org/api/v4/gbfs/hellocycling/station_status.json");
+		    const station_status = await response1.json();
+
+		    const response2 = await fetch("https://api-public.odpt.org/api/v4/gbfs/hellocycling/station_information.json");
+		    const station_info = await response2.json();
+		    
+		    const map = new Map(station_info.data.stations.map(item => [item.station_id, item]));
+		    const station_data = station_status.data.stations.map(item => ({ ...item, ...map.get(item.station_id) }));
+		    return station_data;
+		}
+    </script>
+</head>
+<body onload="initMap()">
+	<p><input type="radio" id="rent" name="color_type" value="num_bike" checked>
+	   <label for="rent">貸出</label>　
+	   <input type="radio" id="return" name="color_type" value="num_dock">
+	   <label for="return">返却</label></p>
+	<form>検索範囲(m)：<input type="number" id="range" value="1000" min="0"></form>
+    <div id="map" style="height: 900px; width: 100%;"></div>
+</body>
+</html>
